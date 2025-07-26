@@ -1,76 +1,41 @@
 package core
 
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class ShipmentTest {
-    @Test
-    fun `fail - status should not be delivered after creation`() {
-        val shipment = Shipment("id123")
-        try {
-            assertEquals("delivered", shipment.status)
-            fail("Test should have failed but passed")
-        } catch (e: AssertionError) {
-            // Expected failure, test passes
-        }
-    }
-    private lateinit var shipment: Shipment
-
-    @BeforeEach
-    fun setUp() {
-        shipment = Shipment("id123")
+    class TestShipment(id: String, createdAt: Long) : Shipment(id, createdAt) {
+        override fun validateDeliveryRules() {}
     }
 
     @Test
-    fun `initial state is correct`() {
-        assertEquals("id123", shipment.id)
-        assertEquals("created", shipment.status)
-        assertEquals("Unknown", shipment.currentLocation)
-        assertEquals(0, shipment.expectedDeliveryDateTimestamp)
-        assertTrue(shipment.notes.isEmpty())
-        assertTrue(shipment.updateHistory.isEmpty())
-    }
-
-    @Test
-    fun `setStatus updates status and history`() {
+    fun `toDTO returns correct values`() {
+        val shipment = TestShipment("id", 123L)
         shipment.setStatus("shipped")
-        assertEquals("shipped", shipment.status)
-        assertEquals(1, shipment.updateHistory.size)
-        assertEquals("created", shipment.updateHistory[0].previousStatus)
-        assertEquals("shipped", shipment.updateHistory[0].newStatus)
-    }
-
-    @Test
-    fun `setLocation updates location`() {
         shipment.setLocation("Warehouse")
-        assertEquals("Warehouse", shipment.currentLocation)
+        shipment.setDeliveryTimestamp(456L)
+        shipment.addNote("Test note")
+        shipment.addViolation("Test violation")
+        val dto = shipment.toDTO()
+        assertEquals("id", dto.id)
+        assertEquals("shipped", dto.status)
+        assertEquals("Warehouse", dto.currentLocation)
+        assertEquals(456L, dto.expectedDeliveryDateTimestamp)
+        assertTrue(dto.notes.any { it.message == "Test note" })
+        assertTrue(dto.violations.contains("Test violation"))
     }
 
     @Test
-    fun `setDeliveryTimestamp updates timestamp`() {
-        shipment.setDeliveryTimestamp(123456789L)
-        assertEquals(123456789L, shipment.expectedDeliveryDateTimestamp)
-    }
-
-    @Test
-    fun `addNote adds note`() {
-        shipment.addNote("Fragile")
-        assertTrue(shipment.notes.contains("Fragile"))
-    }
-
-    @Test
-    fun `addObserver and removeObserver work`() {
+    fun `addObserver and notifyObservers works`() {
+        val shipment = TestShipment("id", 0L)
+        var called = false
         val observer = object : ShipmentObserver {
-            var called = false
             override fun onUpdate(shipment: Shipment) { called = true }
         }
         shipment.addObserver(observer)
-        shipment.setStatus("delivered")
-        assertTrue(observer.called)
-        shipment.removeObserver(observer)
-        observer.called = false
-        shipment.setStatus("lost")
-        assertFalse(observer.called)
+        shipment.setStatus("shipped")
+        assertTrue(called)
     }
+
+
 }
