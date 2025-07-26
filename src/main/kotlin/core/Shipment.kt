@@ -1,19 +1,56 @@
 package core
 
-import javafx.collections.FXCollections
-import javafx.collections.ObservableList
+import java.util.concurrent.TimeUnit
+import kotlinx.serialization.Serializable
 
-class Shipment(val id: String) {
+@Serializable
+data class Note(
+    val message: String,
+    val timestamp: Long
+)
+
+@Serializable
+data class ShipmentDTO(
+    val id: String,
+    val status: String,
+    val currentLocation: String,
+    val expectedDeliveryDateTimestamp: Long,
+    val notes: List<Note>,
+    val violations: List<String>,
+    val updateHistory: List<ShippingUpdate>
+)
+
+abstract class Shipment(val id: String, val createdAt: Long) {
     var status: String = "created"
         private set
-    val notes: ObservableList<String> = FXCollections.observableArrayList()
-    val updateHistory: ObservableList<ShippingUpdate> = FXCollections.observableArrayList()
+    val notes = mutableListOf<Note>()
+    val updateHistory = mutableListOf<ShippingUpdate>()
     var expectedDeliveryDateTimestamp: Long = 0
-        private set
+        protected set
     var currentLocation: String = "Unknown"
-        private set
+        protected set
+    val violations = mutableListOf<String>()
 
     private val observers = mutableListOf<ShipmentObserver>()
+
+    abstract fun validateDeliveryRules()
+
+    fun toDTO(): ShipmentDTO {
+        return ShipmentDTO(
+            id = id,
+            status = status,
+            currentLocation = currentLocation,
+            expectedDeliveryDateTimestamp = expectedDeliveryDateTimestamp,
+            notes = notes.toList(),
+            violations = violations.toList(),
+            updateHistory = updateHistory.toList()
+        )
+    }
+
+    fun addViolation(message: String) {
+        violations.add(message)
+        notifyObservers()
+    }
 
     fun addObserver(observer: ShipmentObserver) {
         if (!observers.contains(observer)) {
@@ -25,11 +62,10 @@ class Shipment(val id: String) {
         observers.remove(observer)
     }
 
-    private fun notifyObservers() {
+    fun notifyObservers() {
         observers.forEach { it.onUpdate(this) }
     }
 
-    // State modification methods with notification
     fun setStatus(newStatus: String) {
         val previous = status
         status = newStatus
@@ -44,16 +80,17 @@ class Shipment(val id: String) {
 
     fun setDeliveryTimestamp(timestamp: Long) {
         expectedDeliveryDateTimestamp = timestamp
+        validateDeliveryRules()
         notifyObservers()
     }
 
-    // Original methods from UML
-    fun addNote(note: String) {
-        notes.add(note)
+    fun addNote(message: String) {
+        notes.add(Note(message, System.currentTimeMillis()))
         notifyObservers()
     }
 
     fun addUpdate(update: ShippingUpdate) {
         updateHistory.add(update)
+        notifyObservers() // Added missing notification
     }
 }

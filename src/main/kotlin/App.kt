@@ -1,7 +1,15 @@
-import tornadofx.launch
-import tornadofx.App
-import ui.MainView
+import androidx.compose.material.MaterialTheme
+import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.application
+import ui.TrackerUI
 
-class ShipmentTrackerApp : App(MainView::class)
-
-fun main() = launch<ShipmentTrackerApp>()
+fun main() = application {
+    Window(
+        title = "Shipment Tracker",
+        onCloseRequest = ::exitApplication
+    ) {
+        MaterialTheme {
+            TrackerUI()
+        }
+    }
+}
